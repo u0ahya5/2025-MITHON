@@ -70,7 +70,7 @@ const Home = () => {
             <h1>메인 화면</h1>
             <div style={{ marginBottom: "12px" }}>
                 <button onClick={() => navigate("/alarm")}>🔔 알람</button>
-                <button onClick={() => console.log("마이페이지로 이동")}>👤 마이페이지</button>
+                <button onClick={() => navigate("/mypage")}>👤 마이페이지</button>
                 <button onClick={() => console.log("랜덤 글 받기")}>🎲 랜덤 글</button>
             </div>
 
