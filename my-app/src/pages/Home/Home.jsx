@@ -240,7 +240,7 @@ const Home = () => {
                         min-height: 100vh;
                         padding-top: 60px;
                         font-family: 'Noto Sans KR', sans-serif;
-                        background-color: #f5f5f5;
+                        // background-color: #f5f5f5;
                     }
 
                     /* --- Fixed Header (Existing styles) --- */
@@ -329,7 +329,7 @@ const Home = () => {
 
 
                     /* --- Main Content (Existing styles) --- */
-                    .main-content { max-width: 1200px; margin: 0 auto; padding: 16px; }
+                    .main-content { max-width: 3000px; margin: 0 auto; padding: 16px; }
                     .action-area { text-align: center; margin: 32px 0 48px 0; }
                     .action-area h2 { font-size: 24px; font-weight: 600; color: #4a4a4a; margin-bottom: 24px; }
                     .action-area .btn-group { display: flex; justify-content: center; gap: 16px; }
