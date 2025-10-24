@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Bell, User, ChevronLeft, Heart } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { Bell, User, ChevronLeft, Heart, X } from 'lucide-react';
 
-// Mock Data (Expanded content for better detail view)
+// --- Mock Data ---
+// (initialPosts와 mockNotifications는 그대로 사용)
 const initialPosts = [
     {
         id: 1,
@@ -34,20 +35,180 @@ const initialPosts = [
     }
 ];
 
+const mockNotifications = [
+    { id: 1, type: "heart", text: "상대 마음글에 마음을 표시했어요", time: "1분 전", targetPostId: 1 },
+    { id: 2, type: "comment", text: "새로운 위로글이 달렸어요", time: "2분 전", targetPostId: 2 },
+    { id: 3, type: "heart", text: "상대 마음글에 마음을 표시했어요", time: "10분 전", targetPostId: 3 },
+    { id: 4, type: "comment", text: "새로운 위로글이 달렸어요", time: "1시간 전", targetPostId: 1 },
+];
+
+// --- Notification Dropdown Component (이전과 동일) ---
+const NotificationDropdown = ({ notifications, onClose, onNavigatePost }) => {
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                onClose();
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [onClose]);
+
+    return (
+        <div className="notification-dropdown" ref={dropdownRef}>
+            <div className="dropdown-header">
+                <h4>알림</h4>
+                <button onClick={onClose} className="close-button" aria-label="알림 닫기">
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+            {notifications.length === 0 ? (
+                <p className="empty-message">새로운 알림이 없어요.</p>
+            ) : (
+                <ul className="notification-list">
+                    {notifications.map(notif => (
+                        <li key={notif.id} onClick={() => onNavigatePost(notif.targetPostId)} className="notification-item">
+                            <span className={`icon-indicator ${notif.type}`}>
+                                {notif.type === 'heart' ? <Heart size={14} fill="currentColor" /> : '💬'}
+                            </span>
+                            <div className="text-content">
+                                <p className="notification-text">{notif.text}</p>
+                                <span className="notification-time">{notif.time}</span>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
+// --- PostWriteModal Component (새로 추가) ---
+const PostWriteModal = ({ onClose, onPostSubmit }) => {
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
+    const modalRef = useRef(null);
+
+    // ESC 키로 모달 닫기
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
+
+    // backdrop 클릭 시 모달 닫기
+    const handleBackdropClick = (e) => {
+        if (e.target.className.includes('modal-backdrop')) {
+            onClose();
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (title.trim() === "" || content.trim() === "") {
+            // This case should be handled by 'required' attribute, but added for robustness
+            return;
+        }
+        onPostSubmit({ title, content });
+        setTitle("");
+        setContent("");
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={handleBackdropClick}>
+            <div className="modal-content" ref={modalRef}>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-header">
+                        <h2>고민 작성하기</h2>
+                        <button type="button" onClick={onClose} className="close-button" aria-label="닫기">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="post-title" className="sr-only">제목</label>
+                        <input
+                            id="post-title"
+                            type="text"
+                            placeholder="글의 제목을 입력해주세요"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="title-input"
+                            maxLength={50}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="post-content" className="sr-only">글 작성</label>
+                        <textarea
+                            id="post-content"
+                            placeholder="오늘은 무슨 일이 있었나요?"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="content-textarea"
+                            rows={10}
+                            required
+                        />
+                    </div>
+
+                    <button type="submit" className="upload-button">
+                        업로드하기
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Main Home Component ---
 const Home = () => {
     // --- State and Handlers ---
     const [posts, setPosts] = useState(initialPosts);
     const [selectedPost, setSelectedPost] = useState(null);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [showWriteModal, setShowWriteModal] = useState(false); // **New state for Write Modal**
     const userName = "아이콘 님";
 
-    // Mock navigation function (for console logging)
-    const navigate = (path) => console.log(`Navigating to: ${path}`);
+    const navigate = (pathOrId) => {
+        if (typeof pathOrId === 'string') {
+            console.log(`Navigating to: ${pathOrId}`);
+        } else if (typeof pathOrId === 'number') {
+            const post = posts.find(p => p.id === pathOrId);
+            if (post) {
+                handleShowDetail(post);
+                setShowNotifications(false);
+            }
+        }
+    };
 
     const handleShowDetail = (post) => setSelectedPost(post);
     const handleBack = () => setSelectedPost(null);
+    const handleToggleNotifications = () => setShowNotifications(prev => !prev);
+    const handleToggleWriteModal = () => setShowWriteModal(prev => !prev); // **Modal Toggle**
+
+    const handlePostSubmit = ({ title, content }) => { // **New Post Submission Handler**
+        const newPost = {
+            id: Date.now(), // Simple unique ID
+            title: title || "(제목 없음)",
+            content: content,
+            comfortComments: [],
+        };
+        // Add new post to the beginning of the list
+        setPosts(prevPosts => [newPost, ...prevPosts]);
+        console.log("새 고민이 작성되었습니다:", newPost);
+        // Optionally, navigate to the detail view of the new post
+        // handleShowDetail(newPost);
+    };
 
     const handleLikeComment = (commentId) => {
-        // 1. Update the posts array (main data source)
         const updatedPosts = posts.map((post) => {
             if (post.id === selectedPost.id) {
                 return {
@@ -61,8 +222,6 @@ const Home = () => {
         });
 
         setPosts(updatedPosts);
-
-        // 2. Update selectedPost to reflect the new state immediately for the detail view
         const updatedSelectedPost = updatedPosts.find((p) => p.id === selectedPost.id);
         setSelectedPost(updatedSelectedPost);
     };
@@ -79,12 +238,12 @@ const Home = () => {
                     /* Base Styles */
                     .app-container {
                         min-height: 100vh;
-                        padding-top: 60px; /* Header height */
+                        padding-top: 60px;
                         font-family: 'Noto Sans KR', sans-serif;
                         background-color: #f5f5f5;
                     }
 
-                    /* --- Fixed Header --- */
+                    /* --- Fixed Header (Existing styles) --- */
                     .header {
                         position: fixed;
                         top: 0;
@@ -95,33 +254,14 @@ const Home = () => {
                         justify-content: space-between;
                         align-items: center;
                         padding: 12px 20px;
-                        background-color: #FF6B6B; /* Primary Red */
+                        background-color: #FF6B6B;
                         color: white;
                         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
                     }
-
-                    .header h1 {
-                        font-size: 20px;
-                        font-weight: 700;
-                    }
-
-                    .header .user-info {
-                        display: flex;
-                        align-items: center;
-                        gap: 15px;
-                    }
-
-                    .header .user-info span {
-                        font-size: 14px;
-                        font-weight: 500;
-                        display: none; /* Hidden on small screens */
-                    }
-                    @media (min-width: 640px) {
-                        .header .user-info span {
-                            display: inline;
-                        }
-                    }
-
+                    .header h1 { font-size: 20px; font-weight: 700; }
+                    .header .user-info { display: flex; align-items: center; gap: 15px; position: relative; }
+                    .header .user-info span { font-size: 14px; font-weight: 500; display: none; }
+                    @media (min-width: 640px) { .header .user-info span { display: inline; } }
                     .header button {
                         background: none;
                         border: none;
@@ -130,285 +270,253 @@ const Home = () => {
                         padding: 4px;
                         border-radius: 50%;
                         transition: background-color 0.2s;
+                        position: relative;
                     }
-                    .header button:hover {
-                        background-color: rgba(255, 255, 255, 0.2);
+                    .header button:hover { background-color: rgba(255, 255, 255, 0.2); }
+                    .notification-dot {
+                        position: absolute;
+                        top: 4px;
+                        right: 4px;
+                        width: 8px;
+                        height: 8px;
+                        background-color: #ffe040;
+                        border-radius: 50%;
+                        border: 1px solid #FF6B6B;
                     }
-
-                    /* --- Main Content --- */
-                    .main-content {
-                        max-width: 1200px;
-                        margin: 0 auto;
-                        padding: 16px;
-                    }
-
-                    /* Action Area */
-                    .action-area {
-                        text-align: center;
-                        margin: 32px 0 48px 0;
-                    }
-
-                    .action-area h2 {
-                        font-size: 24px;
-                        font-weight: 600;
-                        color: #4a4a4a;
-                        margin-bottom: 24px;
-                    }
-
-                    .action-area .btn-group {
-                        display: flex;
-                        justify-content: center;
-                        gap: 16px;
-                    }
-
-                    .action-area button {
-                        padding: 12px 24px;
-                        border-radius: 9999px; /* Fully rounded */
-                        font-size: 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                        transition: all 0.2s ease;
-                        min-width: 140px;
-                    }
-
-                    .action-area .btn-primary {
-                        background-color: #FF6B6B;
-                        color: white;
-                        border: none;
-                    }
-                    .action-area .btn-primary:hover {
-                        background-color: #FF4B4B;
-                    }
-
-                    .action-area .btn-secondary {
+                    /* --- Notification Dropdown Styles (Existing styles) --- */
+                    .notification-dropdown {
+                        position: absolute;
+                        top: 50px;
+                        right: 0;
+                        width: 300px;
+                        max-height: 400px;
                         background-color: white;
-                        color: #FF6B6B;
-                        border: 2px solid #FF6B6B;
-                    }
-                    .action-area .btn-secondary:hover {
-                        background-color: #ffe8e8;
-                    }
-
-                    /* Post List Grid */
-                    .post-list-header {
-                        font-size: 20px;
-                        font-weight: 700;
-                        color: #333;
-                        margin-bottom: 16px;
-                        padding-left: 8px;
-                        border-left: 4px solid #FF6B6B;
-                    }
-
-                    .posts-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-                        gap: 20px;
-                    }
-
-                    .post-card {
-                        background-color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-                        transition: transform 0.2s, box-shadow 0.2s;
-                        cursor: pointer;
-                        border: 1px solid #eee;
-                    }
-
-                    .post-card:hover {
-                        transform: translateY(-4px);
-                        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-                    }
-
-                    .post-card h4 {
-                        font-size: 15px;
-                        font-weight: 700;
-                        color: #555;
-                        margin-bottom: 8px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                    }
-
-                    .post-card p {
-                        font-size: 14px;
-                        color: #666;
-                        /* Custom line-clamp effect for description */
-                        display: -webkit-box;
-                        -webkit-box-orient: vertical;
-                        -webkit-line-clamp: 3;
-                        overflow: hidden;
-                        line-height: 1.5;
-                        height: 4.5em; /* 3 lines * 1.5 line-height */
-                    }
-
-                    .post-card .detail-link {
-                        display: block;
-                        margin-top: 12px;
-                        text-align: right;
-                        font-size: 12px;
-                        color: #FF6B6B;
-                        font-weight: 500;
-                    }
-
-                    /* Random Button */
-                    .random-button-area {
-                        text-align: center;
-                        margin-top: 48px;
-                        margin-bottom: 48px;
-                    }
-                    .random-button {
-                        padding: 8px 24px;
-                        border-radius: 9999px;
-                        background-color: #999;
-                        color: white;
-                        font-weight: 600;
-                        font-size: 14px;
-                        border: none;
-                        cursor: pointer;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        transition: background-color 0.2s;
-                    }
-                    .random-button:hover {
-                        background-color: #777;
-                    }
-
-                    /* --- Detail View --- */
-                    .detail-view {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        background-color: white;
-                        padding: 24px;
-                        border-radius: 16px;
-                        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
-                    }
-
-                    .detail-view .back-button {
-                        display: flex;
-                        align-items: center;
-                        font-size: 16px;
-                        font-weight: 600;
-                        color: #FF6B6B;
-                        margin-bottom: 24px;
-                        padding: 8px;
-                        background: none;
-                        border: none;
-                        cursor: pointer;
                         border-radius: 8px;
-                        transition: background-color 0.2s;
-                    }
-                    .detail-view .back-button:hover {
-                        background-color: #ffeeee;
-                    }
-                    .detail-view .back-button svg {
-                        width: 20px;
-                        height: 20px;
-                        margin-right: 4px;
-                    }
-
-                    .detail-view h2 {
-                        font-size: 28px;
-                        font-weight: 700;
-                        color: #333;
-                        margin-bottom: 16px;
-                        padding-bottom: 8px;
-                        border-bottom: 1px solid #ddd;
-                    }
-
-                    .detail-view .content-box {
-                        color: #555;
-                        white-space: pre-wrap;
-                        line-height: 1.8;
-                        margin-bottom: 32px;
-                        padding: 20px;
-                        background-color: #f9f9f9;
-                        border-radius: 12px;
-                        border: 1px solid #f0f0f0;
-                        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-                    }
-
-                    .detail-view h3 {
-                        font-size: 20px;
-                        font-weight: 700;
-                        color: #444;
-                        margin-bottom: 16px;
-                        padding-left: 8px;
-                        border-left: 4px solid #FF6B6B;
-                    }
-
-                    /* Comfort Comment Cards */
-                    .comment-list {
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                        z-index: 20;
+                        overflow: hidden;
                         display: flex;
                         flex-direction: column;
-                        gap: 12px;
+                        transform-origin: top right;
+                        animation: fadeInScale 0.2s ease-out;
+                    }
+                    @media (max-width: 640px) {
+                        .notification-dropdown {
+                            width: 90vw;
+                            max-width: 350px;
+                            right: 5vw;
+                        }
+                    }
+                    @keyframes fadeInScale {
+                        from { opacity: 0; transform: scale(0.9); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+                    .dropdown-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; background-color: #f7f7f7; }
+                    .dropdown-header h4 { font-size: 16px; font-weight: 700; color: #333; }
+                    .dropdown-header .close-button { color: #777; padding: 2px; background-color: transparent; border-radius: 4px; }
+                    .dropdown-header .close-button:hover { background-color: #ddd; }
+                    .notification-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+                    .notification-item { display: flex; align-items: flex-start; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background-color 0.15s; }
+                    .notification-item:hover { background-color: #ffe8e8; }
+                    .notification-item:last-child { border-bottom: none; }
+                    .icon-indicator { flex-shrink: 0; margin-right: 12px; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+                    .icon-indicator.heart { background-color: #fee2e2; color: #ef4444; }
+                    .icon-indicator.comment { background-color: #e0f2fe; color: #3b82f6; }
+                    .text-content { flex-grow: 1; }
+                    .notification-text { margin: 0; font-size: 14px; color: #4a4a4a; line-height: 1.4; font-weight: 500; }
+                    .notification-time { display: block; font-size: 12px; color: #999; margin-top: 4px; }
+                    .empty-message { padding: 20px; text-align: center; color: #999; font-size: 14px; }
+
+
+                    /* --- Main Content (Existing styles) --- */
+                    .main-content { max-width: 1200px; margin: 0 auto; padding: 16px; }
+                    .action-area { text-align: center; margin: 32px 0 48px 0; }
+                    .action-area h2 { font-size: 24px; font-weight: 600; color: #4a4a4a; margin-bottom: 24px; }
+                    .action-area .btn-group { display: flex; justify-content: center; gap: 16px; }
+                    .action-area button { padding: 12px 24px; border-radius: 9999px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s ease; min-width: 140px; }
+                    .action-area .btn-primary { background-color: #FF6B6B; color: white; border: none; }
+                    .action-area .btn-secondary { background-color: white; color: #FF6B6B; border: 2px solid #FF6B6B; }
+                    .action-area .btn-primary:hover, .action-area .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); }
+                    .post-list-header { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 16px; padding-left: 8px; border-left: 4px solid #FF6B6B; }
+                    .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+                    .post-card { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; border: 1px solid #eee; }
+                    .post-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); }
+                    .post-card h4 { font-size: 15px; font-weight: 700; color: #555; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    .post-card p { font-size: 14px; color: #666; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; line-height: 1.5; height: 4.5em; }
+                    .detail-link { display: block; margin-top: 12px; font-size: 13px; color: #FF6B6B; font-weight: 600; text-align: right; }
+                    .detail-view { max-width: 800px; margin: 0 auto; background-color: white; padding: 24px; border-radius: 16px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15); }
+                    .detail-view .back-button { display: flex; align-items: center; gap: 4px; background: none; border: none; color: #FF6B6B; font-weight: 600; cursor: pointer; margin-bottom: 24px; padding: 0; }
+                    .detail-view h2 { font-size: 24px; font-weight: 700; color: #333; margin-bottom: 16px; }
+                    .detail-view .content-box { white-space: pre-wrap; font-size: 16px; color: #555; background-color: #f9f9f9; padding: 16px; border-radius: 8px; margin-bottom: 24px; line-height: 1.6; border: 1px solid #eee; }
+                    .detail-view h3 { font-size: 20px; font-weight: 700; color: #444; margin-bottom: 16px; padding-left: 8px; border-left: 4px solid #FF6B6B; }
+                    .detail-view .comment-card { background-color: #fff; border: 1px solid #f0f0f0; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .detail-view .comment-card p { flex-grow: 1; margin: 0; font-size: 15px; color: #333; }
+                    .detail-view .like-button { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 20px; background-color: #f0f0f0; color: #666; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s; margin-left: 15px; flex-shrink: 0; }
+                    .detail-view .like-button:hover { background-color: #e0e0e0; }
+                    .like-button.liked { background-color: #fee2e2; color: #ef4444; font-weight: 700; box-shadow: 0 1px 3px rgba(239, 68, 68, 0.2); }
+                    .random-button-area { text-align: center; margin-top: 40px; }
+                    .random-button {
+                        padding: 10px 20px;
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        transition: background-color 0.2s;
                     }
 
-                    .comment-card {
+                    /* --- MODAL SPECIFIC STYLES (New) --- */
+                    .modal-backdrop {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+                        z-index: 50; /* Above all other content */
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        animation: fadeIn 0.15s ease-out;
+                    }
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    
+                    .modal-content {
+                        width: 90%;
+                        max-width: 500px; /* Max width as seen in the image */
                         background-color: white;
-                        padding: 16px;
-                        border-radius: 10px;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-                        border: 1px solid #eee;
+                        border-radius: 12px;
+                        box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+                        animation: zoomIn 0.2s ease-out;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    @keyframes zoomIn {
+                        from { transform: scale(0.95); opacity: 0; }
+                        to { transform: scale(1); opacity: 1; }
+                    }
+
+                    .modal-header {
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
+                        padding: 20px 24px;
+                        border-bottom: 1px solid #eee;
                     }
-                    .comment-card p {
-                        font-style: italic;
-                        color: #666;
-                        font-size: 15px;
-                        flex-grow: 1;
-                        margin-right: 16px;
-                    }
-
-                    .like-button {
-                        display: flex;
-                        align-items: center;
-                        padding: 6px 12px;
-                        border-radius: 9999px;
-                        font-size: 14px;
-                        font-weight: 500;
-                        transition: all 0.2s;
-                        border: none;
-                        cursor: pointer;
-                    }
-
-                    .like-button.liked {
-                        background-color: #fee2e2; /* light pink */
-                        color: #ef4444; /* red-500 */
+                    .modal-header h2 {
+                        font-size: 18px;
                         font-weight: 700;
-                        box-shadow: 0 1px 3px rgba(239, 68, 68, 0.2);
+                        color: #333;
+                        margin: 0;
                     }
-                    .like-button.unliked {
-                        background-color: #f0f0f0;
-                        color: #777;
+                    .modal-header .close-button {
+                        background: none;
+                        border: none;
+                        color: #aaa;
+                        cursor: pointer;
+                        padding: 0;
+                        transition: color 0.15s;
                     }
-                    .like-button.unliked:hover {
-                        background-color: #e0e0e0;
+                    .modal-header .close-button:hover {
+                        color: #FF6B6B;
                     }
-                    .like-button svg {
-                        width: 16px;
-                        height: 16px;
-                        margin-right: 4px;
+                    
+                    form {
+                        padding: 0 24px 24px 24px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 16px;
                     }
-                    .like-button.liked svg {
-                        fill: #ef4444; /* red-500 */
+                    
+                    .form-group {
+                        margin-bottom: 0;
                     }
+
+                    .title-input, .content-textarea {
+                        width: 100%;
+                        padding: 12px;
+                        border: 1px solid #ddd;
+                        border-radius: 8px;
+                        font-size: 15px;
+                        font-family: 'Noto Sans KR', sans-serif;
+                        resize: none;
+                        transition: border-color 0.2s;
+                        box-sizing: border-box; /* Ensures padding doesn't exceed width */
+                    }
+                    .title-input {
+                        font-weight: 500;
+                        margin-top: 20px;
+                    }
+                    .content-textarea {
+                        margin-top: 0px;
+                        line-height: 1.5;
+                        min-height: 150px;
+                    }
+                    .title-input:focus, .content-textarea:focus {
+                        border-color: #FF6B6B;
+                        outline: none;
+                        box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+                    }
+                    .content-textarea::placeholder {
+                        color: #999;
+                    }
+                    .upload-button {
+                        width: 100%;
+                        padding: 14px;
+                        background-color: #FF6B6B;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: background-color 0.2s;
+                        margin-top: 10px; /* Space between textarea and button */
+                    }
+                    .upload-button:hover {
+                        background-color: #FF4A4A;
+                    }
+                    .sr-only {
+                        position: absolute;
+                        width: 1px;
+                        height: 1px;
+                        padding: 0;
+                        margin: -1px;
+                        overflow: hidden;
+                        clip: rect(0, 0, 0, 0);
+                        white-space: nowrap;
+                        border-width: 0;
+                    }
+
                 `}
             </style>
 
             {/* --- Fixed Header --- */}
             <header className="header">
-                <h1>마음봇</h1>
+                <h1>어울림</h1> {/* Adjusted to '어울림' based on image */}
                 <div className="user-info">
-                    <span>{userName}</span>
+                    <span>하미님</span> {/* Adjusted to '하미님' based on image */}
                     <button
-                        onClick={() => navigate("/alarm")}
+                        onClick={handleToggleNotifications}
                         aria-label="알람"
                     >
                         <Bell className="w-5 h-5" />
+                        {mockNotifications.length > 0 && (
+                            <div className="notification-dot"></div>
+                        )}
                     </button>
+                    {showNotifications && (
+                        <NotificationDropdown
+                            notifications={mockNotifications}
+                            onClose={() => setShowNotifications(false)}
+                            onNavigatePost={navigate}
+                        />
+                    )}
                     <button
                         onClick={() => navigate("/mypage")}
                         aria-label="마이페이지"
@@ -422,14 +530,13 @@ const Home = () => {
                 {!selectedPost ? (
                     /* --- Main View: Action Buttons and Post List --- */
                     <>
-                        {/* Action Area */}
                         <div className="action-area">
                             <h2>
                                 마음을 담아 글을 남겨보세요
                             </h2>
                             <div className="btn-group">
                                 <button
-                                    onClick={() => console.log("고민 작성하기")}
+                                    onClick={handleToggleWriteModal} // **Triggers Modal**
                                     className="btn-primary"
                                 >
                                     고민 작성하기
@@ -442,8 +549,6 @@ const Home = () => {
                                 </button>
                             </div>
                         </div>
-
-                        {/* Post List */}
                         <h3 className="post-list-header">
                             내가 썼던 글 보기
                         </h3>
@@ -454,9 +559,8 @@ const Home = () => {
                                     className="post-card"
                                     onClick={() => handleShowDetail(post)}
                                 >
-                                    {/* Mock title for list view */}
                                     <h4>
-                                        (그냥 조금 지친 하루였어요)
+                                        {post.title}
                                     </h4>
                                     <p>
                                         {post.content}
@@ -465,19 +569,9 @@ const Home = () => {
                                 </div>
                             ))}
                         </div>
-
-                        {/* Random Button */}
-                        <div className="random-button-area">
-                            <button
-                                onClick={() => navigate("/random")}
-                                className="random-button"
-                            >
-                                🎲 랜덤 글 받기
-                            </button>
-                        </div>
                     </>
                 ) : (
-                    /* --- Detail View --- */
+                    /* --- Detail View (Existing logic) --- */
                     <div className="detail-view">
                         <button
                             onClick={handleBack}
@@ -526,6 +620,14 @@ const Home = () => {
                     </div>
                 )}
             </main>
+
+            {/* --- Post Write Modal Render --- */}
+            {showWriteModal && (
+                <PostWriteModal
+                    onClose={handleToggleWriteModal}
+                    onPostSubmit={handlePostSubmit}
+                />
+            )}
         </div>
     );
 };

@@ -1,42 +1,63 @@
-import { useState, useContext } from "react";
-import { createPost } from "../../services/postService";
-import { UserContext } from "../../context/UserContext";
+// PostWriteModal.jsx (Home 컴포넌트 안에 넣어도 됩니다. 여기서는 가독성을 위해 분리)
+const PostWriteModal = ({ onClose, onPostSubmit }) => {
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
 
-export default function WritePost() {
-  const { user } = useContext(UserContext); // 로그인한 유저 정보
-  const [text, setText] = useState("")
-  const [loading, setLoading] = useState(false)
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (title.trim() === "" || content.trim() === "") {
+            alert("제목과 내용을 모두 입력해주세요.");
+            return;
+        }
+        onPostSubmit({ title, content });
+        setTitle("");
+        setContent("");
+        onClose();
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!text.trim()) return alert("고민을 입력해주세요!")
-    setLoading(true)
-    try {
-      await createPost(user.uid, text);
-      setText(""); // 작성 후 입력 초기화
-      alert("글 작성 완료!")
-    } catch (err) {
-      console.error(err)
-      alert("글 작성 실패")
-    } finally {
-      setLoading(false)
-    }
-  };
+    return (
+        <div className="modal-backdrop">
+            <div className="modal-content">
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-header">
+                        <h2>고민 작성하기</h2>
+                        <button type="button" onClick={onClose} className="close-button" aria-label="닫기">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <h2>위로 받고 싶은 글 작성하기</h2>
-      <form onSubmit={handleSubmit}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="고민을 작성해주세요..."
-          rows={6}
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? "작성 중..." : "작성하기"}
-        </button>
-      </form>
-    </div>
-  );
-}
+                    <div className="form-group">
+                        <label htmlFor="post-title" className="sr-only">제목</label>
+                        <input
+                            id="post-title"
+                            type="text"
+                            placeholder="글의 제목을 입력해주세요"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="title-input"
+                            maxLength={50}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="post-content" className="sr-only">글 작성</label>
+                        <textarea
+                            id="post-content"
+                            placeholder="오늘은 무슨 일이 있었나요?"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="content-textarea"
+                            rows={10}
+                            required
+                        />
+                    </div>
+
+                    <button type="submit" className="upload-button">
+                        업로드하기
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
