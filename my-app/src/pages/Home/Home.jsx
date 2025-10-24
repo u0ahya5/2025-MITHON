@@ -29,6 +29,14 @@ const Home = () => {
 
     const [selectedPost, setSelectedPost] = useState(null);
 
+    // 카드 공통 스타일
+    const cardStyle = {
+        border: "1px solid #ccc",
+        padding: "12px",
+        margin: "8px 0",
+        borderRadius: "8px",
+    };
+
     // 상세보기 클릭
     const handleShowDetail = (post) => {
         setSelectedPost(post);
@@ -58,9 +66,9 @@ const Home = () => {
     };
 
     return (
-        <div style={{ padding: "20px" }}>
+        <div style={{ padding: "15px" }}>
             <h1>메인 화면</h1>
-            <div style={{ marginBottom: "10px" }}>
+            <div style={{ marginBottom: "12px" }}>
                 <button onClick={() => navigate("/alarm")}>🔔 알람</button>
                 <button onClick={() => console.log("마이페이지로 이동")}>👤 마이페이지</button>
                 <button onClick={() => console.log("랜덤 글 받기")}>🎲 랜덤 글</button>
@@ -71,15 +79,7 @@ const Home = () => {
                 <>
                     <h2>내가 쓴 글</h2>
                     {posts.map((post) => (
-                        <div
-                            key={post.id}
-                            style={{
-                                border: "1px solid #ccc",
-                                padding: "10px",
-                                margin: "10px 0",
-                                borderRadius: "8px",
-                            }}
-                        >
+                        <div key={post.id} style={cardStyle}>
                             <h3>{post.title}</h3>
                             <p>{post.content.substring(0, 20)}...</p>
                             <button onClick={() => handleShowDetail(post)}>자세히 보기</button>
@@ -95,15 +95,7 @@ const Home = () => {
 
                     <h3>익명의 위로글들</h3>
                     {selectedPost.comfortComments.map((comment) => (
-                        <div
-                            key={comment.id}
-                            style={{
-                                border: "1px solid #ccc",
-                                padding: "10px",
-                                margin: "10px 0",
-                                borderRadius: "8px",
-                            }}
-                        >
+                        <div key={comment.id} style={cardStyle}>
                             <p>{comment.text}</p>
                             <button onClick={() => handleLikeComment(comment.id)}>
                                 {comment.liked ? "💖 마음 표시됨" : "🤍 마음 표시"}
