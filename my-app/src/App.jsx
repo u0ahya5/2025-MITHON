@@ -10,10 +10,11 @@ import { UserProvider } from "./context/UserContext";
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+    <UserProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
           <Route
             path="/"
@@ -39,8 +40,8 @@ function App() {
               </AuthWrapper>
             }
           />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
     </UserProvider>
   );
 }
