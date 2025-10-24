@@ -1,7 +1,9 @@
 // src/pages/Home/Home.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+    const navigate = useNavigate(); // 페이지 이동 함수
     const [posts, setPosts] = useState([
         { id: 1, title: "힘든 하루였어요", content: "오늘 정말 지쳤어요...", liked: false },
         { id: 2, title: "불안한 마음", content: "요즘 계속 불안하고 잠이 안 와요.", liked: true },
@@ -24,7 +26,7 @@ const Home = () => {
         <div style={{ padding: "20px" }}>
             <h1>메인 화면</h1>
             <div style={{ marginBottom: "10px" }}>
-                <button onClick={() => console.log("알람 화면으로 이동")}>🔔 알람</button>
+                <button onClick={() => navigate("/alarm")}>🔔 알람</button>
                 <button onClick={() => console.log("마이페이지로 이동")}>👤 마이페이지</button>
                 <button onClick={() => console.log("랜덤 글 받기")}>🎲 랜덤 글</button>
             </div>
