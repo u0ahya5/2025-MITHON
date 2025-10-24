@@ -1,5 +1,5 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "./firebase";
 
 // 글 작성
 export const createPost = async (authorId, text) => {
