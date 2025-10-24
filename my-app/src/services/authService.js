@@ -17,3 +17,9 @@ export const signup = async (email, password, nickname) => {
 export const login = async (email, password) => {
   await signInWithEmailAndPassword(auth, email, password);
 };
+
+import { signOut as firebaseSignOut } from 'firebase/auth'; // 이름 충돌 방지위해 이름바꿈
+
+export const logout = async () => {
+  await firebaseSignOut(auth);
+};
