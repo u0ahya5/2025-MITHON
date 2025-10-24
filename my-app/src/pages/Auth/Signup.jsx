@@ -1,43 +1,50 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db, app } from "./firebase";
+import { db } from "../../services/firebase";
+import { UserContext } from "../../context/UserContext";
 
 export default function Signup(){
+    const { setUser } = useContext(UserContext)
     const[id, setId] = useState("")
     const[pw, setPw] = useState("")
     const [error, setError] = useState("")
     const navigate = useNavigate()
 
     const handleSignup = async () => {
-        const auth = getAuth(app);
-        try {
-        // Firebase Auth 회원가입
-        const userCredential = await createUserWithEmailAndPassword(auth, email, pw);
-        const uid = userCredential.user.uid;
+    try {
+      // 이미 있는 아이디 확인
+      const userRef = doc(db, "users", id);
+      const userSnap = await getDoc(userRef);
 
-        // Firestore users 컬렉션에 추가
-        await setDoc(doc(db, "users", uid), {
-            email,
-            createdAt: serverTimestamp(),
-        });
+      if (userSnap.exists()) {
+        setError("이미 사용 중인 아이디입니다.");
+        return;
+      }
 
-        alert("회원가입 성공!");
-        navigate("/login"); // 가입 후 로그인 페이지로 이동
-        } catch (err) {
-        setError("회원가입 실패: " + err.message);
-        }
-    };
+      // 새 계정 생성
+      await setDoc(userRef, {
+        password: pw,
+        likes: 0,
+        createdAt: serverTimestamp(),
+      });
+
+      setUser({ id, password: pw, likes: 0 });
+      alert("회원가입 성공!");
+      navigate("/login");
+    } catch (err) {
+      setError("회원가입 실패: " + err.message);
+    }
+  };
 
   return (
     <div>
       <h2>회원가입</h2>
       <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="아이디(이메일)"
+        type="text"
+        value={id}
+        onChange={(e) => setId(e.target.value)}
+        placeholder="아이디"
       />
       <input
         type="password"
